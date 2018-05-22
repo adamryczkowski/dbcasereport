@@ -9,6 +9,10 @@ ReportClass<-R6::R6Class(
     initialize = function() {
       #do nothing
     },
+    set_case_names=function(casenames) {
+      checkmate::assert_character(casenames, unique = TRUE)
+      private$casenames_<-casenames
+    },
     add_element=function(type, case, var, par1=character(0), par2=character(0)) {
       checkmate::assert_integer(case)
       checkmate::assert_character(var)
@@ -22,9 +26,15 @@ ReportClass<-R6::R6Class(
     }
   ),
   active = list(
-    elements=function() {private$elements_}
+    elements=function() {private$elements_},
+    casenames=function() {private$casenames_}
   ),
   private = list(
-    elements_=list() #Each element is a list with members: case, var, type, par1, par2
+    elements_=list(), #Each element is a list with members: case, var, type, par1, par2
+    casenames_=list()
   )
 )
+
+general_hash_fn<-function(el) {
+  return(list(hash=digest::digest(list(type=el$type, par1=el$par1, par2=el$par2)), context=list(par1=el$par1, par2=el$par2)))
+}

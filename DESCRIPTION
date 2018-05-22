@@ -9,3 +9,13 @@ Description: More about what it does (maybe more than one line)
 License: What license is it under?
 Encoding: UTF-8
 LazyData: true
+Imports:
+  R6,
+  purrr,
+  dplyr,
+  rectpartitions,
+  checkmate,
+  lists2df
+Remotes: 
+  adamryczkowski/rectpartitions,
+  adamryczkowski/lists2df
