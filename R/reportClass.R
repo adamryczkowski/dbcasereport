@@ -17,6 +17,9 @@ ReportClass<-R6::R6Class(
       checkmate::assert_integer(case)
       checkmate::assert_character(var)
       checkmate::assert_string(type)
+      if(length(par1)==0) {
+        browser()
+      }
       for(scase in case) {
         for(v in var) {
           item<-list(type=type, case=scase, var=v, par1=par1, par2=par2)

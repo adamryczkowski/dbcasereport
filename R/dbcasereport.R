@@ -12,23 +12,27 @@
 #    of data, that you don't want to mix)
 #    A function must always return a context list with fixed and constant names of the elements.
 
-compile_report<-function(reportClass, fn_hasher) {
+compile_report<-function(reportClass, fn_hasher, report_headers_list, doc, report_composer) {
   elements<-reportClass$elements
   types<-purrr::map_chr(reportClass$elements, 'type')
-  types_df<-dplyr::arrange(as.data.frame(table(types)), -Freq)
+#  browser()
+  types_df<-dplyr::arrange(as.data.frame(table(types)), Freq)
   names(types_df)<-c('type', 'count')
   for(i in seq_len(nrow(types_df))) {
     type<-types_df$type[[i]]
     pos<-which(types==type)
-    rep<-compile_report_type(elements[pos], fn_hasher, type, rownames=reportClass$casenames)
+    if(!type %in% names(report_headers_list)) {
+      browser()
+    }
+    chapter<-doc$insert_section(text = report_headers_list[[as.character(type)]], tags = as.character(type))
+    rep<-compile_report_type(elements[pos], fn_hasher, type, rownames=reportClass$casenames, doc = chapter, report_composer)
   }
 }
 
 #Compiles report for the given type. All elements are guaranteed to come from the same type.
-compile_report_type<-function(elements, fn_hasher, type, rownames) {
+compile_report_type<-function(elements, fn_hasher, type, rownames, doc, report_composer) {
   hashes_l<-purrr::map(elements, fn_hasher)
   varcases_l<-purrr::map(elements, ~list(case=.$case, var=.$var))
-
   hashes<-purrr::map_chr(hashes_l, 'hash')
   contexts<-purrr::map(hashes_l, 'context')
   hashes_df<-dplyr::arrange(as.data.frame(table(hashes)), -Freq)
@@ -36,32 +40,50 @@ compile_report_type<-function(elements, fn_hasher, type, rownames) {
   for(i in seq_len(nrow(hashes_df))) {
     hash<-hashes_df$hash[[i]]
     pos<-which(hashes==hash)
-    browser()
-    rep<-compile_report_hash(contexts[pos], varcases_l[pos], type, hash, rownames)
+    rep<-compile_report_hash(contexts[pos], varcases_l[pos], type, rownames, doc, report_composer)
   }
 }
 
 #Compiles report for the given hash. The report is a list that will be fed to the formatting function.
 #First it generates a list of rectangles of variables
-compile_report_hash<-function(contexts, varcases, type, hash, rownames) {
+compile_report_hash<-function(contexts, varcases, type, rownames, doc, report_composer) {
   cols_names<-unique(purrr::map_chr(varcases, 'var'))
   rows_nr<-unique(purrr::map_int(varcases, 'case'))
   if(length(rownames)==0) {
     rows_names<-rows_nr
   } else {
-    rows_names<-rownames[rows_nr]
+    rows_names<-rownames[as.integer(rows_nr)]
   }
 
   rect<-array(integer(1), dim = c(length(rows_nr),length(cols_names)))
+  inv_rect<-array(integer(1), dim = c(length(rows_nr),length(cols_names)))
 
-  for(varcase in varcases) {
-    rect[which(varcase$case == rows_nr), which(varcase$var == cols_names) ]<-1L
+  for(i in seq_along(varcases)) {
+    varcase<-varcases[[i]]
+    row<-which(varcase$case == rows_nr)
+    col<-which(varcase$var == cols_names)
+    rect[row, col ]<-1L
+    inv_rect[row, col]<-i
   }
   colnames(rect)<-cols_names
   rownames(rect)<-rows_names
 
-  browser()
   rects<-rectpartitions:::get_rectangles_shuffle(rect)
   #Now we have a set of rectangles. We should also compress the contexts too
+
   contexts_df<-lists2df::lists_to_df(contexts)
+  for(rect in rects) {
+    pos<-expand.grid(col=rect$cols, row=rect$rows)
+#    browser()
+    idx<-inv_rect[cbind(pos$row, pos$col)]
+    rect_contexts_df<-plyr::count(contexts_df[idx,])
+    rect<-list(rows=setNames(rows_nr[rect$rows], names(rect$rows)), cols=rect$cols)
+    compile_report_par(rect=rect, type = type, context_df=rect_contexts_df, doc=doc, report_compose = report_composer)
+  }
+}
+
+compile_report_par<-function(rect, type, context_df, doc, report_compose) {
+#  browser()
+  txt<-report_composer(rows=rect$rows, cols=rect$cols, type=type, context_df=context_df)
+  doc$insert_paragraph(text = txt, tags = as.character(type))
 }

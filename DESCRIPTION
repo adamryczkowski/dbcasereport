@@ -1,18 +1,19 @@
 Package: dbcasereport
 Type: Package
-Title: What the Package Does (Title Case)
-Version: 0.1.0
-Author: Who wrote it
-Maintainer: The package maintainer <yourself@somewhere.net>
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
-License: What license is it under?
+Title: Engine that is used to create a terse and human-readable high quality listing of list elements indexed by 2 dimensions (column id and row id)
+Version: 1.0.0
+Author: Adam Ryczkowski
+Maintainer: Adam Ryczkowski <adam@statystyka.net>
+Description: The original purpose is to create a terse report of mismatches when comparing two simmilar data frames. 
+    The tool can be used to make a "diff" between the data.frames or any other two-dimensionally indexed list of elements.
+License: GNU GPL 3
 Encoding: UTF-8
 LazyData: true
 Imports:
   R6,
   purrr,
   dplyr,
+  plyr,
   rectpartitions,
   checkmate,
   lists2df
