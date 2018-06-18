@@ -32,8 +32,6 @@ ReportClassStorage<-R6::R6Class(
         }
         private$casenames_<-as.character(db[[casenamesvar]])
       }
-
-      private$varnames_<-colnames(db)
     },
     declare_type=function(type, caption, parlist, default_formatter_name, defualt_formatter=NULL, flag_requires_cases=TRUE) {
       checkmate::assert_string(type)
@@ -48,9 +46,9 @@ ReportClassStorage<-R6::R6Class(
         browser()
       } else {
         item<-list(parlist=parlist, requires_cases=flag_requires_cases, caption=caption, formatters=list())
-        private$types_<-c(private$types_, list(item))
+        private$types_<-c(private$types_, setNames(list(item), type))
       }
-      if(!is.null(defualt_formatter)) {
+      if(!missing(defualt_formatter) && !is.null(defualt_formatter)) {
         self$add_formatter(type=type, formatter_name=default_formatter_name, formatter=default_formatter)
       }
 
@@ -68,7 +66,7 @@ ReportClassStorage<-R6::R6Class(
       #formatter must be a function that takes varcase_txt argument and a subset of paramaters declared in its type.
       #Moreover, the function must not take argument 'row', and 'col'.
       checkmate::assert_function(formatter, args = c('varcase_txt' ))
-      fmls<-names(formals(fomatter))
+      fmls<-names(formals(formatter))
       fmls<-setdiff(fmls, c('...', 'varcase_txt', 'context_df', 'row', 'col'))
       #varcase_txt contains nicely formatted description of the row.
       #context_df is a data.table with one record for each entry to gather in the current row.
@@ -91,17 +89,12 @@ ReportClassStorage<-R6::R6Class(
       }
       type_entry<-private$types_[[type]]
       extra_args<-list(...)
-      if(!all(extra_args %in% names(type_entry$parlist))) {
+      if(!all(names(extra_args) %in% names(type_entry$parlist))) {
         stop(paste0(paste0(setdiff(extra_args, names(type_entry$parlist)), collapse=", "), " are not registered for the report type ", type))
       }
 
-
-
-      checkmate::assert_integer(case, null.ok=private$nullcases_ok_)
       checkmate::assert_character(var, null.ok=FALSE)
-      if(length(par1)==0) {
-        browser()
-      }
+
       if(!is.null(case)) {
         for(scase in case) {
           for(v in var) {
@@ -110,7 +103,7 @@ ReportClassStorage<-R6::R6Class(
               stop("Case number outside the range. Feed more recent case numbers with $set_case_names()")
             }
             case_str<-private$casenames_[[scase]]
-            item<-list(type=type, case=case_str, var=v, par1=par1, par2=par2)
+            item<-c(list(type=type, case=case_str, var=v), extra_args)
             private$elements_<-c(private$elements_, list(item))
           }
         }
@@ -145,18 +138,21 @@ ReportClassStorage<-R6::R6Class(
 ReportClassWithVariable<-R6::R6Class(
   classname='ReportClassWithVariable',
   public = list(
-    initialize = function(parent, variables) {
-      checkmate::assert_class(parent, classes = c('ReportClassStorage', 'ReportClassWithVariable'))
+    initialize = function(parent, variable) {
       if('ReportClassWithVariable' %in% class(parent)) {
         parent<-parent$base_class
-        checkmate::assert_class(parent, classes = c('ReportClassStorage', 'ReportClassWithVariable'))
       }
+      checkmate::assert_class(parent, classes = c('ReportClassStorage'))
 
 
-      checkmate::assert_character(variables)
+
+      checkmate::assert_string(variable)
 
       private$parent_<-parent
-      private$variables_<-variables
+      checkmate::assert_true(variable %in% colnames(private$parent_$db))
+
+      private$variable_<-variable
+
     },
     declare_type=function(type, caption, parlist, default_formatter_name, defualt_formatter, flag_requires_cases=TRUE) {
       private$parent_$declare_type(type, caption, parlist, default_formatter_name, defualt_formatter, flag_requires_cases)
@@ -168,7 +164,7 @@ ReportClassWithVariable<-R6::R6Class(
       private$parent_$type_exists(type)
     },
     add_element=function(type, case=NULL, ...) {
-      private$parent_$add_element(type=type, case=case, var=private$variables_)
+      private$parent_$add_element(type=type, case=case, var=private$variable_, ...)
     }
   ),
   active = list(
@@ -176,11 +172,11 @@ ReportClassWithVariable<-R6::R6Class(
     casenames=function() {private$parent_$casenames},
     base_class=function() {private$parent_},
     db=function() {private$parent_$db},
-    variables=function() {private$variables_}
+    variable=function() {private$variable_}
   ),
   private = list(
     parent_=NULL, #Main object that gathers the report
-    variables_=NULL #Default varname
+    variable_=NULL #Default varname
   )
 )
 
@@ -199,12 +195,20 @@ ReportClassWithVariable<-R6::R6Class(
 # Jeśli mamy tylko jeden formatter, to można go podać w argumencie formatters. A gdy więcej, to
 # jako nazwaną listę w tymże argumencie
 typeReporter_factory <- function(reportClass, type, type_caption, formatters, flag_use_case) {
-  checkmate::assert_r6(reportClass, classes = c('ReportClassWithVariable', 'ReportClassStorage'))
+
+  if('ReportClassStorage' %in% class(reportClass)) {
+    checkmate::assert_r6(reportClass, classes = c('ReportClassStorage'))
+  } else if ('ReportClassWithVariable' %in% class(reportClass)) {
+    checkmate::assert_r6(reportClass, classes = c('ReportClassWithVariable'))
+  } else {
+    browser()
+  }
 
   checkmate::assert_string(type)
   checkmate::assert_string(type_caption)
   if(reportClass$type_exists(type)) {
     browser()
+    parlist=reportClass$elements
   } else {
     if('function' %in% class(formatters)) {
       formatters<-list(default=formatters)
@@ -217,7 +221,7 @@ typeReporter_factory <- function(reportClass, type, type_caption, formatters, fl
       formatter<-formatters[[i]]
       checkmate::assert_function(formatter, args = c('varcase_txt' ))
       tmpfmls <- names(formals(formatter))
-      if(any(c('row','col'))%in%tmpfmls) {
+      if(any(c('row','col')%in%tmpfmls)) {
         stop(paste0("Formatter must not take parameters 'col' and 'row'"))
       }
       fmls[[i]]<-setdiff(tmpfmls, c('...', 'varcase_txt', 'context_df', 'row', 'col'))
@@ -228,6 +232,7 @@ typeReporter_factory <- function(reportClass, type, type_caption, formatters, fl
     for(i in seq_along(formatters)) {
       formatter<-formatters[[i]]
       fmls<-formals(formatter)
+      fmls<-fmls[setdiff(names(fmls), c('varcase_txt', 'context_df', 'row', 'col'))]
       for(argname in names(fmls)) {
         if(par_set[[argname]]) {
           if(parlist[[argname]]!=fmls[[argname]]) {
@@ -240,6 +245,7 @@ typeReporter_factory <- function(reportClass, type, type_caption, formatters, fl
       }
     }
     rm(par_set, fmls, formatter, parnames)
+
     reportClass$declare_type(type=type, caption=type_caption, parlist=parlist,
                              flag_requires_cases = TRUE)
     for(i in seq_along(formatters)) {
@@ -249,70 +255,26 @@ typeReporter_factory <- function(reportClass, type, type_caption, formatters, fl
     }
   }
   fn_tmp<-function() {} #Just to get our execution environment
-  fn_body<-quote({
+
+  fn_body<-substitute({
     args<-mget(names(formals()),sys.frame(sys.nframe()))
-    do.call(reportClass$add_element, args)
-  })
+    do.call(reportClass$add_element, c(list(type=mytype), args))
+  }, list(mytype=type))
+
   if('ReportClassStorage' %in% class(reportClass)) {
     if(flag_use_case) {
-      fmls<-c(list(type=type, case), parlist)
+      fmls<-c(list(var=quote(expr=), case=quote(expr=)), parlist)
     } else {
-      fmls<-c(list(type=type), parlist)
+      fmls<-c(list(var=quote(expr=)), parlist)
     }
   } else if ('ReportClassWithVariable' %in% class(reportClass)) {
     if(flag_use_case) {
-      fmls<-c(list(type=type, var=quote(expr=), case), parlist)
+      fmls<-c(list(case=quote(expr=)), parlist)
     } else {
-      fmls<-c(list(type=type, var=quote(expr=)), parlist)
+      fmls<-parlist
     }
   }
   fun<-as.function(c(fmls, fn_body), environment(fn_tmp))
   return(fun)
 }
 
-#Report class that incorporates a type and variable
-ReportClassWithType<-R6::R6Class(
-  classname='ReportClassWithType',
-  public = list(
-    initialize = function(reportClass, variables) {
-      checkmate::assert_class(parent, classes = c('ReportClassStorage', 'ReportClassWithVariable'))
-      if('ReportClassWithVariable' %in% class(parent)) {
-        parent<-parent$base_class
-        checkmate::assert_class(parent, classes = c('ReportClassStorage', 'ReportClassWithVariable'))
-      }
-
-
-      checkmate::assert_character(variables)
-
-      private$parent_<-parent
-      private$variables_<-variables
-    },
-    declare_type=function(type, caption, parlist, default_formatter_name, defualt_formatter, flag_requires_cases=TRUE) {
-      private$parent_$declare_type(type, caption, parlist, default_formatter_name, defualt_formatter, flag_requires_cases)
-    },
-    add_formatter=function(type, formatter_name, formatter) {
-      private$parent_$add_formatter(type, formatter_name, formatter)
-    },
-    type_exists=function(type) {
-      private$parent_$type_exists(type)
-    },
-    add_element=function(type, case=NULL, ...) {
-      private$parent_$add_element(type=type, case=case, var=private$variables_)
-    }
-  ),
-  active = list(
-    elements=function() {private$parent_$elements},
-    casenames=function() {private$parent_$casenames},
-    base_class=function() {private$parent_},
-    db=function() {private$parent_$db},
-    variables=function() {private$variables_}
-  ),
-  private = list(
-    parent_=NULL, #Main object that gathers the report
-    variables_=NULL #Default varname
-  )
-)
-
-general_hash_fn<-function(el) {
-  return(list(hash=digest::digest(list(type=el$type, par1=el$par1, par2=el$par2)), context=list(par1=el$par1, par2=el$par2)))
-}
