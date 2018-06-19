@@ -54,10 +54,12 @@ ReportClassStorage<-R6::R6Class(
 
     },
     add_formatter=function(type, formatter_name, formatter) {
+      #browser()
       if(!type %in% names(private$types_)) {
         #type doesn't exist. First we must define the type
         browser()
       }
+      #types<-private$types_
       type_l<-private$types_[[type]]
       if(formatter_name %in% names(type_l$formatters)) {
         #We don't support re-adding the same formatter again
@@ -77,11 +79,21 @@ ReportClassStorage<-R6::R6Class(
         cat(paste0(paste0(args, collapse=', '), ' are missing in formatter!'))
       }
       type_l$formatters<-c(type_l$formatters, as.list(setNames(list(formatter=formatter), formatter_name)))
-
+#      types[[type]]<-type_l
+      private$types_[[type]]<-type_l
+#      browser()
     },
     type_exists=function(type) {
       return(type %in% names(private$types_))
     },
+    get_type=function(type) {
+      if(type %in% names(private$types_)) {
+        return(private$types_[[type]])
+      } else {
+        return(NULL)
+      }
+    },
+
     add_element=function(type, case, var, ...) {
       checkmate::assert_string(type)
       if(!type %in% names(private$types_)) {
@@ -256,24 +268,29 @@ typeReporter_factory <- function(reportClass, type, type_caption, formatters, fl
   }
   fn_tmp<-function() {} #Just to get our execution environment
 
-  fn_body<-substitute({
-    args<-mget(names(formals()),sys.frame(sys.nframe()))
-    do.call(reportClass$add_element, c(list(type=mytype), args))
-  }, list(mytype=type))
 
-  if('ReportClassStorage' %in% class(reportClass)) {
-    if(flag_use_case) {
+  if(flag_use_case) {
+    fn_body<-substitute({
+      args<-mget(names(formals()),sys.frame(sys.nframe()))
+      do.call(reportClass$add_element, c(list(type=mytype), args))
+    }, list(mytype=type))
+    if('ReportClassStorage' %in% class(reportClass)) {
       fmls<-c(list(var=quote(expr=), case=quote(expr=)), parlist)
-    } else {
-      fmls<-c(list(var=quote(expr=)), parlist)
-    }
-  } else if ('ReportClassWithVariable' %in% class(reportClass)) {
-    if(flag_use_case) {
+    }else{
       fmls<-c(list(case=quote(expr=)), parlist)
-    } else {
+    }
+  } else {
+    fn_body<-substitute({
+      args<-mget(names(formals()),sys.frame(sys.nframe()))
+      do.call(reportClass$add_element, c(list(case=NA, type=mytype), args))
+    }, list(mytype=type))
+    if('ReportClassStorage' %in% class(reportClass)) {
+      fmls<-c(list(var=quote(expr=)), parlist)
+    }else{
       fmls<-parlist
     }
   }
+
   fun<-as.function(c(fmls, fn_body), environment(fn_tmp))
   return(fun)
 }

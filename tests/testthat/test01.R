@@ -43,6 +43,8 @@ testthat::test_that("Test", {
   rap_fun(case = 14, nalabel = "label")
 
   rcvar$elements
+  reportClass<-rc
+
 })
 
 

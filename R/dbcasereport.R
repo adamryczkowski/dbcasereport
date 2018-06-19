@@ -12,48 +12,74 @@
 #    of data, that you don't want to mix)
 #    A function must always return a context list with fixed and constant names of the elements.
 
-compile_report<-function(reportClass, fn_hasher, report_headers_list, doc, report_composer) {
+compile_report<-function(reportClass, doc, report_composer, formatter_name='default') {
+  # First stage: we are sorting all entries into separate types. Each type will get its own chapter.
   elements<-reportClass$elements
   types<-purrr::map_chr(reportClass$elements, 'type')
 #  browser()
-  types_df<-dplyr::arrange(as.data.frame(table(types)), Freq)
+  types_df<-dplyr::arrange(data.table::as.data.table(table(types)), N)
   names(types_df)<-c('type', 'count')
   for(i in seq_len(nrow(types_df))) {
     type<-types_df$type[[i]]
     pos<-which(types==type)
-    if(!type %in% names(report_headers_list)) {
-      browser()
+    type_info<-reportClass$get_type(type)
+    caption<-type_info$caption
+    chapter<-doc$insert_section(text = caption, tags = type)
+    if(formatter_name %in% names(type_info$formatters)) {
+      formatter<-type_info$formatters[[formatter_name]]
+    } else {
+      if('default' %in% names(type_info$formatters)) {
+        formatter<-type_info$formatters$default
+      } else {
+        if(length(type_info$formatters)>0) {
+          formatter<-type_info$formatters[[1]]
+        } else {
+          browser() #No formatters for this type
+        }
+      }
     }
-    chapter<-doc$insert_section(text = report_headers_list[[as.character(type)]], tags = as.character(type))
-    rep<-compile_report_type(elements[pos], fn_hasher, type, rownames=reportClass$casenames, doc = chapter, report_composer)
+    rep<-compile_report_type(elements[pos], type, parlist=names(type_info$parlist),
+                             doc = chapter, report_composer, formatter=formatter)
   }
 }
 
 #Compiles report for the given type. All elements are guaranteed to come from the same type.
-compile_report_type<-function(elements, fn_hasher, type, rownames, doc, report_composer) {
-  hashes_l<-purrr::map(elements, fn_hasher)
+compile_report_type<-function(elements, type, doc, report_composer, formatter) {
+
+  fmt_args<-formals(formatter)
+  fmt_args<-setdiff(names(fmt_args), c('varcase_txt', 'context_df'))
+
+  fn_hasher<-function(...) {
+    #    browser()
+    args<-list(...)[[1]]
+    args<-args[fmt_args]
+    args<-args[order(names(args))]
+    return(digest::digest(args))
+  }
+  fn_contexts<-function(...) {
+    #    browser()
+    args<-list(...)[[1]]
+    args<-args[parlist]
+    args<-args[order(names(args))]
+    return(args)
+  }
+  hashes<-purrr::map_chr(elements, fn_hasher)
   varcases_l<-purrr::map(elements, ~list(case=.$case, var=.$var))
-  hashes<-purrr::map_chr(hashes_l, 'hash')
-  contexts<-purrr::map(hashes_l, 'context')
-  hashes_df<-dplyr::arrange(as.data.frame(table(hashes)), -Freq)
+  contexts<-purrr::map(elements, fn_contexts)
+  hashes_df<-dplyr::arrange(data.table::as.data.table(table(hashes)), -N)
   names(hashes_df)<-c('hash', 'count')
   for(i in seq_len(nrow(hashes_df))) {
     hash<-hashes_df$hash[[i]]
     pos<-which(hashes==hash)
-    rep<-compile_report_hash(contexts[pos], varcases_l[pos], type, rownames, doc, report_composer)
+    rep<-compile_report_hash(contexts[pos], varcases_l[pos], type, doc, report_composer, formatter)
   }
 }
 
 #Compiles report for the given hash. The report is a list that will be fed to the formatting function.
 #First it generates a list of rectangles of variables
-compile_report_hash<-function(contexts, varcases, type, rownames, doc, report_composer) {
+compile_report_hash<-function(contexts, varcases, type, doc, report_composer, formatter) {
   cols_names<-unique(purrr::map_chr(varcases, 'var'))
-  rows_nr<-unique(purrr::map_int(varcases, 'case'))
-  if(length(rownames)==0) {
-    rows_names<-rows_nr
-  } else {
-    rows_names<-rownames[as.integer(rows_nr)]
-  }
+  rows_names<-unique(purrr::map_chr(varcases, 'case'))
 
   rect<-array(integer(1), dim = c(length(rows_nr),length(cols_names)))
   inv_rect<-array(integer(1), dim = c(length(rows_nr),length(cols_names)))
