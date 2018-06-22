@@ -15,8 +15,10 @@ Imports:
   dplyr,
   plyr,
   rectpartitions,
+  ReportGatherer,
   checkmate,
   lists2df
 Remotes: 
   adamryczkowski/rectpartitions,
+  adamryczkowski/ReportGatherer,
   adamryczkowski/lists2df

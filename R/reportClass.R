@@ -69,7 +69,7 @@ ReportClassStorage<-R6::R6Class(
       #Moreover, the function must not take argument 'row', and 'col'.
       checkmate::assert_function(formatter, args = c('varcase_txt' ))
       fmls<-names(formals(formatter))
-      fmls<-setdiff(fmls, c('...', 'varcase_txt', 'context_df', 'row', 'col'))
+      fmls<-setdiff(fmls, c('...', 'varcase_txt','subset_df', 'context_df', 'row', 'col'))
       #varcase_txt contains nicely formatted description of the row.
       #context_df is a data.table with one record for each entry to gather in the current row.
       #It contains columns "row", "col", and any other custom column declared in the type.
@@ -142,7 +142,7 @@ ReportClassStorage<-R6::R6Class(
     # caption - textual information about the type
     # formatters - named list of formatters. First formatter from the list will be treated as default. Each formatter is a list with two elements:
     #             a) formatter - function that formats. It must accept all or subset of declared arguments, and also varcase_txt. Optioanlly can use context_df.
-    #                No parameters not present in set c(names(parlist), 'varcase_txt', 'context_df').
+    #                No parameters not present in set c(names(parlist), 'varcase_txt', 'subset_df', 'context_df').
     #                Formatter will be called once for every observed combination of its parameters.
   )
 )
@@ -236,7 +236,7 @@ typeReporter_factory <- function(reportClass, type, type_caption, formatters, fl
       if(any(c('row','col')%in%tmpfmls)) {
         stop(paste0("Formatter must not take parameters 'col' and 'row'"))
       }
-      fmls[[i]]<-setdiff(tmpfmls, c('...', 'varcase_txt', 'context_df', 'row', 'col'))
+      fmls[[i]]<-setdiff(tmpfmls, c('...', 'varcase_txt', 'subset_df',  'context_df', 'row', 'col'))
     }
     parnames<-unique(unlist(fmls))
     parlist<-setNames(rep(alist(,)[1], length(parnames)),parnames)
@@ -244,7 +244,7 @@ typeReporter_factory <- function(reportClass, type, type_caption, formatters, fl
     for(i in seq_along(formatters)) {
       formatter<-formatters[[i]]
       fmls<-formals(formatter)
-      fmls<-fmls[setdiff(names(fmls), c('varcase_txt', 'context_df', 'row', 'col'))]
+      fmls<-fmls[setdiff(names(fmls), c('varcase_txt','subset_df', 'context_df', 'row', 'col'))]
       for(argname in names(fmls)) {
         if(par_set[[argname]]) {
           if(parlist[[argname]]!=fmls[[argname]]) {

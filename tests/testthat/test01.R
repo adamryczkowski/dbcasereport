@@ -37,14 +37,20 @@ testthat::test_that("Test", {
   rap_fun<-typeReporter_factory(reportClass = rcvar, type = 'label_na', type_caption = 'NA labels of labelled',
                                 formatters=formatter, flag_use_case=TRUE)
 
-  rap_fun(case = 3, nalabel = "label")
-  rap_fun(case = 4, nalabel = "label")
-  rap_fun(case = 14, nalabel = "label")
-  rap_fun(case = 14, nalabel = "label")
+  rap_fun(case = 3, nalabel = "_label_")
+  rap_fun(case = 4, nalabel = "_label_")
+  rap_fun(case = 14, nalabel = "_label_")
+  rap_fun(case = 14, nalabel = "_label_")
 
   rcvar$elements
   reportClass<-rc
 
+  doc<-ReportGatherer::doc_Document$new(author = 'Ja',  title = 'test', format = 'md')
+  compile_report(reportClass=rc, doc=doc, formatter_name='default')
+
+  a<-pander::Pandoc$new()
+  doc$render(a)
+  ReportGatherer::save_report(a, filename = '/tmp/cos')
 })
 
 
