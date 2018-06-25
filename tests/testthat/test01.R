@@ -19,10 +19,10 @@ testthat::test_that("Test", {
                              lab=lab, num=runif(n = n),
                              int1=rpois(n=100, 10.3), int2=rpois(n=100, 15.3), int3=rpois(n=100, 20.3))
 
-  rc<-ReportClassStorage$new(db=db, casenamesvar='ids')
+  rc<-dbcasereport::ReportClassStorage$new(db=db, casenamesvar='ids')
   rcvar<-ReportClassWithVariable$new(parent=rc, variable='lab')
 
-  formatter<-function(varcase_txt, context_df, nalabel, short=FALSE) {
+  formatter<-function(varcase_txt, context_df, nalabel, short=FALSE, ...) {
     if(nrow(context_df)>1 ) {
       have=" have "
     } else {
@@ -39,8 +39,12 @@ testthat::test_that("Test", {
 
   rap_fun(case = 3, nalabel = "_label_")
   rap_fun(case = 4, nalabel = "_label_")
+  rap_fun(case = db$ids[14], nalabel = "_label_")
   rap_fun(case = 14, nalabel = "_label_")
-  rap_fun(case = 14, nalabel = "_label_")
+
+  rap_fun<-typeReporter_factory(reportClass = rcvar, type = 'label_na', type_caption = 'NA labels of labelled',
+                                formatters=formatter, flag_use_case=TRUE)
+  rap_fun(case = 15, nalabel = "_label_")
 
   rcvar$elements
   reportClass<-rc

@@ -110,11 +110,21 @@ ReportClassStorage<-R6::R6Class(
       if(!is.null(case)) {
         for(scase in case) {
           for(v in var) {
-            if(scase>length(private$casenames_) || scase<1){
-              browser()
-              stop("Case number outside the range. Feed more recent case numbers with $set_case_names()")
+            if(any(c('integer', 'numeric') %in% class(scase))) {
+              if(scase>length(private$casenames_) || scase<1){
+                browser()
+                stop("Case number outside the range. Feed more recent case numbers with $set_case_names()")
+              }
+              case_str<-private$casenames_[[scase]]
+            } else if('character' %in% class(scase)) {
+              if (!scase %in% private$casenames_) {
+                browser()
+                stop(paste("Case ", scase, " is missing from case names"))
+              }
+              case_str<-scase
+            } else {
+              browser() #Unknown class of case.
             }
-            case_str<-private$casenames_[[scase]]
             item<-c(list(type=type, case=case_str, var=v), extra_args)
             private$elements_<-c(private$elements_, list(item))
           }
@@ -130,6 +140,7 @@ ReportClassStorage<-R6::R6Class(
   active = list(
     elements=function() {private$elements_},
     casenames=function() {private$casenames_},
+    base_class=function() {self},
     db=function() {private$db_}
   ),
   private = list(
@@ -220,7 +231,7 @@ typeReporter_factory <- function(reportClass, type, type_caption, formatters, fl
   checkmate::assert_string(type_caption)
   if(reportClass$type_exists(type)) {
     browser()
-    parlist=reportClass$elements
+    parlist=reportClass$base_class$get_type(type)$parlist
   } else {
     if('function' %in% class(formatters)) {
       formatters<-list(default=formatters)
@@ -244,7 +255,7 @@ typeReporter_factory <- function(reportClass, type, type_caption, formatters, fl
     for(i in seq_along(formatters)) {
       formatter<-formatters[[i]]
       fmls<-formals(formatter)
-      fmls<-fmls[setdiff(names(fmls), c('varcase_txt','subset_df', 'context_df', 'row', 'col'))]
+      fmls<-fmls[setdiff(names(fmls), c('varcase_txt','subset_df', 'context_df', 'row', 'col', '...'))]
       for(argname in names(fmls)) {
         if(par_set[[argname]]) {
           if(parlist[[argname]]!=fmls[[argname]]) {

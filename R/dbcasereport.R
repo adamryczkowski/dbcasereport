@@ -155,8 +155,8 @@ varcase_formatter_en<-function(rows, cols, in_dt, case_names, language='EN') {
 compile_report_par<-function(rect, type, context_df, doc, varcase_formatter, formatter, reportClass) {
   varcases<-varcase_formatter(rows=rect$rows, cols=rect$cols, in_dt=reportClass$db, case_names=reportClass$casenames)
 
-  fmls<-setdiff(names(formals(formatter)), reserved_parameter_names)
-  args_df<-plyr::count(contexts_df[,fmls])
+  fmls<-setdiff(names(formals(formatter)), c(reserved_parameter_names, '...'))
+  args_df<-plyr::count(context_df[,fmls])
   if(nrow(args_df)>1) {
     browser() #Something wrong with the context_df
   }
