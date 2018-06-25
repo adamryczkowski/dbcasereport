@@ -16,6 +16,11 @@ reserved_parameter_names<-c('varcase_txt', 'context_df', 'subset_df', 'row', 'co
 
 compile_report<-function(reportClass, doc, varcase_formatter=varcase_formatter_en, formatter_name='default') {
   # First stage: we are sorting all entries into separate types. Each type will get its own chapter.
+  if(!checkmate::test_r6(reportClass, classes = 'ReportClassStorage')) {
+    reportClass<-reportClass$base_class
+  }
+  checkmate::assert_r6(reportClass, classes = 'ReportClassStorage')
+
   elements<-reportClass$elements
   types<-purrr::map_chr(reportClass$elements, 'type')
 #  browser()
@@ -104,7 +109,7 @@ compile_report_hash<-function(contexts, varcases, type, doc, varcase_formatter, 
     pos<-expand.grid(col=rect$cols, row=rect$rows)
 #    browser()
     idx<-inv_rect[cbind(pos$row, pos$col)]
-    rect_contexts_df<-plyr::count(contexts_df[idx,])
+    rect_contexts_df<-contexts_df[idx,]
     rect<-list(rows=setNames(rows_names[rect$rows], names(rect$rows)), cols=rect$cols)
     compile_report_par(rect=rect, type = type, context_df=rect_contexts_df, doc=doc, varcase_formatter = varcase_formatter, formatter=formatter, reportClass=reportClass)
   }

@@ -217,7 +217,7 @@ ReportClassWithVariable<-R6::R6Class(
 #
 # Jeśli mamy tylko jeden formatter, to można go podać w argumencie formatters. A gdy więcej, to
 # jako nazwaną listę w tymże argumencie
-typeReporter_factory <- function(reportClass, type, type_caption, formatters, flag_use_case) {
+typeReporter_factory <- function(reportClass, type, type_caption, formatters, flag_use_case, extra_parameters=list()) {
 
   if('ReportClassStorage' %in% class(reportClass)) {
     checkmate::assert_r6(reportClass, classes = c('ReportClassStorage'))
@@ -230,7 +230,7 @@ typeReporter_factory <- function(reportClass, type, type_caption, formatters, fl
   checkmate::assert_string(type)
   checkmate::assert_string(type_caption)
   if(reportClass$type_exists(type)) {
-    browser()
+    #browser()
     parlist=reportClass$base_class$get_type(type)$parlist
   } else {
     if('function' %in% class(formatters)) {
@@ -249,7 +249,7 @@ typeReporter_factory <- function(reportClass, type, type_caption, formatters, fl
       }
       fmls[[i]]<-setdiff(tmpfmls, c('...', 'varcase_txt', 'subset_df',  'context_df', 'row', 'col'))
     }
-    parnames<-unique(unlist(fmls))
+    parnames<-unique(c(unlist(fmls), names(extra_parameters)))
     parlist<-setNames(rep(alist(,)[1], length(parnames)),parnames)
     par_set=setNames(rep(FALSE, length(parlist)), parnames)
     for(i in seq_along(formatters)) {
@@ -267,8 +267,19 @@ typeReporter_factory <- function(reportClass, type, type_caption, formatters, fl
         }
       }
     }
+    if (length(extra_parameters)>0) {
+      for(argname in names(extra_parameters)) {
+        if(par_set[[argname]]) {
+          if(parlist[[argname]]!=extra_parameters[[argname]]) {
+            parlist[[argname]]<-quote(expr=)
+          }
+        } else {
+          par_set[[argname]]<-TRUE
+          parlist[[argname]]<-extra_parameters[[argname]]
+        }
+      }
+    }
     rm(par_set, fmls, formatter, parnames)
-
     reportClass$declare_type(type=type, caption=type_caption, parlist=parlist,
                              flag_requires_cases = TRUE)
     for(i in seq_along(formatters)) {
