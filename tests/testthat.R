@@ -15,7 +15,7 @@ gen_test_db<-function() {
                              int1=rpois(n=100, 10.3), int2=rpois(n=100, 15.3), int3=rpois(n=100, 20.3))
 
   rc<-dbcasereport::ReportClassStorage$new(db=db, casenamesvar='ids')
-  rcvar<-ReportClassWithVariable$new(parent=rc, variable='lab')
+  rcvar<-dbcasereport::ReportClassWithVariable$new(parent=rc, variable='lab')
   return(list(db=db, reportClass=rcvar))
 }
 

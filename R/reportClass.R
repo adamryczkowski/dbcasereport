@@ -217,7 +217,7 @@ ReportClassWithVariable<-R6::R6Class(
 #
 # Jeśli mamy tylko jeden formatter, to można go podać w argumencie formatters. A gdy więcej, to
 # jako nazwaną listę w tymże argumencie
-typeReporter_factory <- function(reportClass, type, type_caption, formatters, flag_use_case, extra_parameters=list()) {
+typeReporter_factory <- function(reportClass, type, type_caption, formatters, flag_use_case, extra_parameters=list(), ...) {
 
   if('ReportClassStorage' %in% class(reportClass)) {
     checkmate::assert_r6(reportClass, classes = c('ReportClassStorage'))
@@ -290,6 +290,11 @@ typeReporter_factory <- function(reportClass, type, type_caption, formatters, fl
   }
   fn_tmp<-function() {} #Just to get our execution environment
 
+  default_values=list(...)
+  matched_values=intersect(names(default_values), names(parlist))
+  if(length(matched_values)>0) {
+    parlist[matched_values]<-default_values[matched_values]
+  }
 
   if(flag_use_case) {
     fn_body<-substitute({
